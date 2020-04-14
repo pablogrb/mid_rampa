@@ -1,2 +1,8 @@
 # RAMSCAMx output met files in UAM-IV CAMx format
 *.cxf
+# MID-RAMPA surface area and silt loading inputs
+*.csv
+# Compiled modules
+*.mod
+# Intermediate compiler output
+*.out

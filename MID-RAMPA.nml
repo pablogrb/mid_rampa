@@ -1,0 +1,11 @@
+&file_io
+
+	! Input UAM-IV CAMx 3D Meteorology file
+	met_imp  = './met/2017-02-01-010000-3dmt-SIMECA.cxf'
+	! Surface area file (with silt loading)
+	sas_imp  - './MID-RAMPA_NHADT.csv'
+
+	! CAMx6.20 compatible ptsource file
+	emis_out = './emis_fdust_20170201.bin'
+
+/
