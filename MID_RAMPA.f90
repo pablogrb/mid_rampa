@@ -22,16 +22,19 @@ IMPLICIT NONE
     ! Error coodes
     !	0 = File IO
     !	1 = Memory allocation
+    !   2 = Unsupported feature
 
     ! ------------------------------------------------------------------------------------------
     ! Declarations
 
     ! IO
-    CHARACTER(LEN=256) :: met_imp
-    INTEGER :: met_imp_unit
-    CHARACTER(LEN=256) :: sas_imp
-    INTEGER :: sas_imp_unit
-    CHARACTER(LEN=256) :: emis_out
+    CHARACTER(LEN=256) :: met_imp                   ! Input UAM-IV CAMx 3D Meteorology file path
+    CHARACTER(LEN=256) :: sas_imp                   ! Surface area file (with silt loading)
+    ! INTEGER :: sas_imp_unit
+    CHARACTER(LEN=256) :: emis_out                  ! CAMx6.20 compatible area file with wind-blown dust emissions
+
+    ! UAM_IV files
+    TYPE(UAM_IV) :: fl_met                          ! Input UAM-IV CAMx 3D Meteorology file
 
     ! Control
 	INTEGER :: arg_num
@@ -50,7 +53,7 @@ IMPLICIT NONE
 	! Command line argument capture
 	arg_num = COMMAND_ARGUMENT_COUNT()
 	IF (arg_num .EQ. 0) THEN
-		ctrlfile = 'MID-RAMPA.nml'
+		ctrlfile = 'MID_RAMPA.nml'
 	ELSEIF (arg_num .NE. 2) THEN
 		WRITE(0,'(A)') 'Bad argument number'
 		CALL EXIT(0)
@@ -75,7 +78,23 @@ IMPLICIT NONE
     
     ! Read the namelist
 	OPEN(NEWUNIT=nml_unit, FILE=ctrlfile, FORM='FORMATTED', STATUS='OLD', ACTION='READ')
-	READ(nml_unit,NML=file_io)
-	CLOSE(nml_unit)
+    READ(nml_unit,NML=file_io)
+    CLOSE(nml_unit)
     
+    ! ------------------------------------------------------------------------------------------
+    ! Read the met input file
+    CALL inquire_header(fl_met, met_imp)
+    SELECT CASE (fl_met%nzup)
+    CASE (1)
+        WRITE(*,'(A)') 'Horizontal wind components are in an Arakawa C arrangement'
+        WRITE(*,'(A)') 'This arrangement is currently not supported'
+        CALL EXIT(2)
+    CASE (0)
+        WRITE(*,'(A)') 'Horizontal wind components are in an cell center arrangement'
+    CASE DEFAULT
+        WRITE(*,'(A)') 'Bad data in wind staggering flag'
+        CALL EXIT(0)
+    END SELECT
+
+
 END PROGRAM MID_RAMPA

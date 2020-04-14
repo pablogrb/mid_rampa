@@ -5,4 +5,6 @@
 # Compiled modules
 *.mod
 # Intermediate compiler output
-*.out
+*.o
+# Compiled program
+MID_RAMPA
