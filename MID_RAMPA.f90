@@ -36,10 +36,15 @@ IMPLICIT NONE
     ! UAM_IV files
     TYPE(UAM_IV) :: fl_met                          ! Input UAM-IV CAMx 3D Meteorology file
 
+    ! Wind speed
+    REAL, ALLOCATABLE :: windspeed(:,:,:)           ! Wind velocity magnitude (windspeed) (col, row, hour)
+    INTEGER :: uwind_isp, vwind_isp                 ! Species code of wind components
+
     ! Control
 	INTEGER :: arg_num
 	CHARACTER(LEN=2) :: arg_switch
-	LOGICAL :: file_exists
+    LOGICAL :: file_exists
+    INTEGER :: alloc_stat
 
     ! Namelist IO
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
@@ -84,17 +89,51 @@ IMPLICIT NONE
     ! ------------------------------------------------------------------------------------------
     ! Read the met input file
     CALL inquire_header(fl_met, met_imp)
+    ! Check for file type
+    IF ( fl_met%ftype .NE. 'AVERAGE   ' ) THEN
+        WRITE(*,'(A)') 'Bad file type. File must be of type AVERAGE'
+        CALL EXIT(0)
+    END IF
+    ! Check if wind component variables are available
+    uwind_isp = fl_spindex(fl_met,'UWIND_MpS')
+    vwind_isp = fl_spindex(fl_met,'VWIND_MpS')
+    
+    ! Allocate memory to the windspeed array
+    ALLOCATE(windspeed(fl_met%nx,fl_met%ny,fl_met%update_times), STAT=alloc_stat)
+    CALL check_alloc_stat(alloc_stat)
+
     SELECT CASE (fl_met%nzup)
     CASE (1)
         WRITE(*,'(A)') 'Horizontal wind components are in an Arakawa C arrangement'
         WRITE(*,'(A)') 'This arrangement is currently not supported'
         CALL EXIT(2)
+
     CASE (0)
         WRITE(*,'(A)') 'Horizontal wind components are in an cell center arrangement'
+        
+        ! Calculate the wind velocity magnitude field (windspeed)
+        windspeed = SQRT(fl_met%conc(:,:,1,:,uwind_isp)**2. + fl_met%conc(:,:,1,:,vwind_isp)**2.)
+
     CASE DEFAULT
         WRITE(*,'(A)') 'Bad data in wind staggering flag'
         CALL EXIT(0)
+
     END SELECT
 
 
 END PROGRAM MID_RAMPA
+
+!	------------------------------------------------------------------------------------------
+!	Subroutines and functions
+!	------------------------------------------------------------------------------------------
+
+SUBROUTINE check_alloc_stat(alloc_stat)
+
+	INTEGER, INTENT(IN) :: alloc_stat
+
+	IF ( alloc_stat .NE. 0 ) THEN
+		WRITE(0,'(A)') 'Error allocating parameter vectors, check available memory'
+		CALL EXIT(1)
+	END IF
+
+END SUBROUTINE check_alloc_stat
