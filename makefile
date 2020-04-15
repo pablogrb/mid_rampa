@@ -11,6 +11,7 @@ FLAGS = -g -Wall -Wno-tabs -fconvert=big-endian
 TARGET = MID_RAMPA
 
 MODULES = \
+MID_RAMPA_MODELS.o \
 class_uam_iv.o 
 PROGRAMS = \
 MID_RAMPA.o

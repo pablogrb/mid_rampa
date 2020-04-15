@@ -1,5 +1,6 @@
 PROGRAM MID_RAMPA
 
+USE MID_RAMPA_MODELS
 USE class_UAM_IV
 IMPLICIT NONE
 
@@ -37,13 +38,16 @@ IMPLICIT NONE
     TYPE(UAM_IV) :: fl_met                          ! Input UAM-IV CAMx 3D Meteorology file
 
     ! Wind speed
-    REAL, ALLOCATABLE :: windspeed(:,:,:)           ! Wind velocity magnitude (windspeed) (col, row, hour)
+    REAL, ALLOCATABLE :: wind_array(:,:,:)           ! Wind velocity magnitude (windspeed) (col, row, hour)
     INTEGER :: uwind_isp, vwind_isp                 ! Species code of wind components
 
     ! Surface area and silt loading
     REAL, ALLOCATABLE :: sas_array(:,:,:)           ! Surface area and silt (SAS) loading array (col, row, (area, silt))
     INTEGER :: sas_x, sas_y                         ! x and y cell coordinate of SAS data
     REAL :: sas_area, sas_silt                      ! SAS data for validation before entering into the output file array
+
+    ! Emissions model
+    CHARACTER(LEN=10) :: model
 
     ! Control
 	INTEGER :: arg_num
@@ -57,6 +61,7 @@ IMPLICIT NONE
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
     INTEGER :: nml_unit								! Control file unit
     NAMELIST /file_io/ met_imp, sas_imp, emis_out
+    NAMELIST /emis_model/ model
 
     ! ------------------------------------------------------------------------------------------
 	! Entry point
@@ -91,6 +96,7 @@ IMPLICIT NONE
     ! Read the namelist
 	OPEN(NEWUNIT=nml_unit, FILE=ctrlfile, FORM='FORMATTED', STATUS='OLD', ACTION='READ')
     READ(nml_unit,NML=file_io)
+    READ(nml_unit,NML=emis_model)
     CLOSE(nml_unit)
     
     ! ------------------------------------------------------------------------------------------
@@ -114,7 +120,7 @@ IMPLICIT NONE
     ! WRITE(*,*) 'U component is in position ', uwind_isp, ' and V in ', vwind_isp
     
     ! Allocate memory to the windspeed array
-    ALLOCATE(windspeed(fl_met%nx,fl_met%ny,fl_met%update_times), STAT=alloc_stat)
+    ALLOCATE(wind_array(fl_met%nx,fl_met%ny,fl_met%update_times), STAT=alloc_stat)
     CALL check_alloc_stat(alloc_stat)
 
     SELECT CASE (fl_met%nzup)
@@ -128,7 +134,7 @@ IMPLICIT NONE
         
         ! Calculate the wind velocity magnitude field (windspeed)
         ! windspeed = fl_met%conc(:,:,1,:,uwind_isp)**2
-        windspeed = SQRT(fl_met%conc(:,:,1,:,uwind_isp)**2 + fl_met%conc(:,:,1,:,vwind_isp)**2)
+        wind_array = SQRT(fl_met%conc(:,:,1,:,uwind_isp)**2 + fl_met%conc(:,:,1,:,vwind_isp)**2)
         ! WRITE(*,'(A)') 'Windspeed calculation worked'
 
     CASE DEFAULT
@@ -147,7 +153,8 @@ IMPLICIT NONE
 
     ! Allocate the SAS array
     ALLOCATE(sas_array(fl_met%nx, fl_met%ny, 2), STAT=alloc_stat)
-	CALL check_alloc_stat(alloc_stat)
+    CALL check_alloc_stat(alloc_stat)
+    sas_array = 0.
 
     ! Read the surface area parameter file
 	OPEN(NEWUNIT=sas_imp_unit, FILE=TRIM(sas_imp),STATUS='OLD')
@@ -166,10 +173,15 @@ IMPLICIT NONE
             CALL EXIT(0)
         END IF
         ! Validate the area and silt data
-        IF ( sas_area < 0 .OR. sas_silt < 0 ) THEN
+        IF ( sas_area < 0 .OR. sas_silt < 0. ) THEN
             WRITE(0,'(A)') 'Surface area and silt loading data values cannot be negative'
             CALL EXIT(0)
         END IF
+
+        ! Load the current data point into the array
+        ! area
+        sas_array(sas_x, sas_y, 1) = sas_area
+        sas_array(sas_x, sas_y, 2) = sas_silt
 
         i_sas = i_sas +1
 
