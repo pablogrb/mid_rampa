@@ -6,13 +6,15 @@ FC = gfortran
 # FLAGS = -g -pc 64 -Kieee -Mdalign -Mextend -Mnoframe -byteswapio
 
 # Flags for gfortran
-FLAGS = -g -Wall -Wno-tabs -fconvert=big-endian
+# FLAGS = -g -Wall -Wno-tabs -fconvert=big-endian
+FLAGS = -g -Wall -Wno-tabs -fconvert=big-endian -fopenmp
 
 TARGET = MID_RAMPA
 
 MODULES = \
 MID_RAMPA_MODELS.o \
-class_uam_iv.o 
+class_uam_iv.o \
+utils_uam_iv.o
 PROGRAMS = \
 MID_RAMPA.o
 

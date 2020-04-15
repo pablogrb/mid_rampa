@@ -2,6 +2,7 @@ PROGRAM MID_RAMPA
 
 USE MID_RAMPA_MODELS
 USE class_UAM_IV
+USE utils_UAM_IV
 IMPLICIT NONE
 
     ! ------------------------------------------------------------------------------------------
@@ -36,9 +37,10 @@ IMPLICIT NONE
 
     ! UAM_IV files
     TYPE(UAM_IV) :: fl_met                          ! Input UAM-IV CAMx 3D Meteorology file
+    TYPE(UAM_IV) :: fl_out                          ! Output UAM-IV CAMx emissions file
 
     ! Wind speed
-    REAL, ALLOCATABLE :: wind_array(:,:,:)           ! Wind velocity magnitude (windspeed) (col, row, hour)
+    REAL, ALLOCATABLE :: wind_array(:,:,:)          ! Wind velocity magnitude (windspeed) (col, row, hour)
     INTEGER :: uwind_isp, vwind_isp                 ! Species code of wind components
 
     ! Surface area and silt loading
@@ -55,7 +57,8 @@ IMPLICIT NONE
     LOGICAL :: file_exists
     INTEGER :: alloc_stat
     INTEGER :: io_stat
-    INTEGER :: i_sas
+    INTEGER :: i_sas, i_nsp, i_hr, i_nx, i_ny, i
+    CHARACTER(LEN=4)  :: str_refmt
 
     ! Namelist IO
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
@@ -118,6 +121,8 @@ IMPLICIT NONE
     uwind_isp = fl_spindex(fl_met,'UWIND_MpS')
     vwind_isp = fl_spindex(fl_met,'VWIND_MpS')
     ! WRITE(*,*) 'U component is in position ', uwind_isp, ' and V in ', vwind_isp
+    ! Read the file
+    CALL read_uamfile(fl_met)
     
     ! Allocate memory to the windspeed array
     ALLOCATE(wind_array(fl_met%nx,fl_met%ny,fl_met%update_times), STAT=alloc_stat)
@@ -157,15 +162,21 @@ IMPLICIT NONE
     sas_array = 0.
 
     ! Read the surface area parameter file
-	OPEN(NEWUNIT=sas_imp_unit, FILE=TRIM(sas_imp),STATUS='OLD')
+	OPEN(NEWUNIT=sas_imp_unit, FILE=TRIM(sas_imp), STATUS='OLD')
 	! Skip column headers
     READ(sas_imp_unit,*)
+    ! WRITE(*,*) 'SAS header skip worked'
     
     ! Read the SAS file until error or EOF
-    i_sas = 0
+    i_sas = 1
+    io_stat = 0
     DO WHILE ( io_stat .EQ. 0 )
 
+        i_sas = i_sas +1
+        ! WRITE(*,*) 'Working on record', i_sas
+
         READ(sas_imp_unit,*,IOSTAT=io_stat) sas_x, sas_y, sas_area, sas_silt
+        ! WRITE(*,*) io_stat, sas_x, sas_y, sas_area, sas_silt
 
         ! Validate the x,y data
         IF ( sas_x <= 0 .OR. sas_x > fl_met%nx .OR. sas_y <= 0 .OR. sas_y > fl_met%ny ) THEN
@@ -179,21 +190,99 @@ IMPLICIT NONE
         END IF
 
         ! Load the current data point into the array
-        ! area
         sas_array(sas_x, sas_y, 1) = sas_area
         sas_array(sas_x, sas_y, 2) = sas_silt
 
-        i_sas = i_sas +1
-
     END DO
+
+    CLOSE(sas_imp_unit)
 
     ! Check if ended on error
     IF ( io_stat > 0 ) THEN
-        WRITE(0,'(A)') 'Error reading surface area and silt loading file'
+        WRITE(0,'(A,I5)') 'Error reading surface area and silt loading file at line ', i_sas
         CALL EXIT(0)
     END IF
-    WRITE(*,'(A,I3,A)') 'Read ', i_sas, ' surface area and silt loading records'
+    WRITE(*,'(A,I5,A)') 'Read ', i_sas-1, ' surface area and silt loading records'
+    ! WRITE(*,'(A)') 'SAS file read worked'
 
+    ! ------------------------------------------------------------------------------------------
+    ! Clone the met file header to the output file
+    CALL clone_header(fl_met, fl_out)
+    ! WRITE(*,'(A)') 'Clone header worked'
+    ! Change the file to EMISSIONS, conserving the rest of the file structure
+    fl_out%ftype = "EMISSIONS"
+	DO i = 1, 10
+		fl_out%fname(i) = fl_out%ftype(i:i)
+    END DO
+    fl_out%nz = 1
+    ! Allocate the species names vectors
+    fl_out%nspec = 2
+	ALLOCATE(fl_out%c_spname(fl_out%nspec), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(fl_out%spname(10,fl_out%nspec), STAT=alloc_stat)
+    CALL check_alloc_stat(alloc_stat)
+    ! Set the species names
+    fl_out%c_spname(1) = 'FCRS'
+    fl_out%c_spname(2) = 'CCRS'
+    ! Write to the species array
+	DO i_nsp = 1, fl_out%nspec
+		DO i = 1,10
+			WRITE(str_refmt,'(4A)') fl_out%c_spname(i_nsp)(i:i)
+			fl_out%spname(i,i_nsp) = str_refmt
+		END DO
+    END DO
+    ! WRITE(*,'(A)') 'Species names worked'
+    
+    ! Allocate the time variant headers and clone from the met file
+	fl_out%update_times = fl_met%update_times
+	ALLOCATE(fl_out%ibgdat(fl_out%update_times), fl_out%iendat(fl_out%update_times), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+	ALLOCATE(fl_out%nbgtim(fl_out%update_times), fl_out%nentim(fl_out%update_times), STAT=alloc_stat)
+    CALL check_alloc_stat(alloc_stat)
+    ! WRITE(*,'(A)') 'Time variant headers allocation worked'
+    fl_out%ibgdat = fl_met%ibgdat
+    fl_out%iendat = fl_met%iendat
+    fl_out%nbgtim = fl_met%nbgtim
+    fl_out%nentim = fl_met%nentim
+    ! WRITE(*,*) fl_out%ibgdat
+    ! WRITE(*,*) fl_met%ibgdat
+    ! WRITE(*,'(A)') 'Time variant headers cloning worked'
+
+    ! Allocate the emissions array
+    ALLOCATE(fl_out%aemis(fl_out%nx,fl_out%ny,fl_out%update_times,fl_out%nspec), STAT=alloc_stat)
+    CALL check_alloc_stat(alloc_stat)
+
+    ! Calculate the emissions
+
+!   Start of the parallel section (OMP NOT WORKING)
+!$OMP PARALLEL SHARED(fl_out)
+!$OMP DO SCHEDULE(DYNAMIC)
+    DO i_hr = 1, fl_out%update_times
+    WRITE(6,'(A,I2)') 'Working on hour ', i_hr
+        DO i_nx = 1, fl_out%nx
+            DO i_ny = 1, fl_out%ny
+
+                ! Calculate by model
+                SELECT CASE (TRIM(model))
+                CASE ('MA11_HADT')
+
+                    fl_out%aemis(i_nx,i_ny,i_hr,:) = MA11_HADT(wind_array(i_nx,i_ny,i_hr), sas_array(i_nx,i_ny,2))
+
+                CASE ('MA11_LADT')
+
+                    fl_out%aemis(i_nx,i_ny,i_hr,:) = MA11_LADT(wind_array(i_nx,i_ny,i_hr), sas_array(i_nx,i_ny,2))
+                    
+                CASE DEFAULT
+                    WRITE(0,'(A,A)') TRIM(model), ' is not a valid model'
+                    CALL EXIT(2)
+                END SELECT
+
+            END DO
+        END DO
+    END DO
+!$OMP END DO NOWAIT
+!$OMP END PARALLEL
+    ! WRITE(*,'(A)') 'Model calc worked'
 
 END PROGRAM MID_RAMPA
 

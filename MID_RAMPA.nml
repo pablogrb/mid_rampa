@@ -10,13 +10,14 @@
 
 /
 
-&/emis_model
+&emis_model
 
 	! Emission model to be used
 	! Options supported are:
 	! 	'MA11_HADT' = Martucevicius et al. 2011. City center street (High traffic).
 	!	'MA11_LADT' = Martucevicius et al. 2011. Connecting street (Low traffic).
 	model = 'MA11_HADT'
+	
 /
 
 ! References
