@@ -30,7 +30,7 @@ IMPLICIT NONE
     ! IO
     CHARACTER(LEN=256) :: met_imp                   ! Input UAM-IV CAMx 3D Meteorology file path
     CHARACTER(LEN=256) :: sas_imp                   ! Surface area file (with silt loading)
-    ! INTEGER :: sas_imp_unit
+    INTEGER :: sas_imp_unit
     CHARACTER(LEN=256) :: emis_out                  ! CAMx6.20 compatible area file with wind-blown dust emissions
 
     ! UAM_IV files
@@ -40,11 +40,18 @@ IMPLICIT NONE
     REAL, ALLOCATABLE :: windspeed(:,:,:)           ! Wind velocity magnitude (windspeed) (col, row, hour)
     INTEGER :: uwind_isp, vwind_isp                 ! Species code of wind components
 
+    ! Surface area and silt loading
+    REAL, ALLOCATABLE :: sas_array(:,:,:)           ! Surface area and silt (SAS) loading array (col, row, (area, silt))
+    INTEGER :: sas_x, sas_y                         ! x and y cell coordinate of SAS data
+    REAL :: sas_area, sas_silt                      ! SAS data for validation before entering into the output file array
+
     ! Control
 	INTEGER :: arg_num
 	CHARACTER(LEN=2) :: arg_switch
     LOGICAL :: file_exists
     INTEGER :: alloc_stat
+    INTEGER :: io_stat
+    INTEGER :: i_sas
 
     ! Namelist IO
 	CHARACTER(LEN=256) :: ctrlfile					! Control namelist
@@ -87,6 +94,13 @@ IMPLICIT NONE
     CLOSE(nml_unit)
     
     ! ------------------------------------------------------------------------------------------
+    ! Check if the met file exists
+	INQUIRE(FILE=TRIM(met_imp), EXIST=file_exists)
+	IF (.NOT. file_exists) THEN
+		WRITE(0,'(A)') 'Point source parameter file ', TRIM(met_imp), ' does not exist'
+		CALL EXIT(0)
+    END IF
+    
     ! Read the met input file
     CALL inquire_header(fl_met, met_imp)
     ! Check for file type
@@ -97,6 +111,7 @@ IMPLICIT NONE
     ! Check if wind component variables are available
     uwind_isp = fl_spindex(fl_met,'UWIND_MpS')
     vwind_isp = fl_spindex(fl_met,'VWIND_MpS')
+    ! WRITE(*,*) 'U component is in position ', uwind_isp, ' and V in ', vwind_isp
     
     ! Allocate memory to the windspeed array
     ALLOCATE(windspeed(fl_met%nx,fl_met%ny,fl_met%update_times), STAT=alloc_stat)
@@ -104,21 +119,68 @@ IMPLICIT NONE
 
     SELECT CASE (fl_met%nzup)
     CASE (1)
-        WRITE(*,'(A)') 'Horizontal wind components are in an Arakawa C arrangement'
-        WRITE(*,'(A)') 'This arrangement is currently not supported'
+        WRITE(0,'(A)') 'Horizontal wind components are in an Arakawa C arrangement'
+        WRITE(0,'(A)') 'This arrangement is currently not supported'
         CALL EXIT(2)
 
     CASE (0)
         WRITE(*,'(A)') 'Horizontal wind components are in an cell center arrangement'
         
         ! Calculate the wind velocity magnitude field (windspeed)
-        windspeed = SQRT(fl_met%conc(:,:,1,:,uwind_isp)**2. + fl_met%conc(:,:,1,:,vwind_isp)**2.)
+        ! windspeed = fl_met%conc(:,:,1,:,uwind_isp)**2
+        windspeed = SQRT(fl_met%conc(:,:,1,:,uwind_isp)**2 + fl_met%conc(:,:,1,:,vwind_isp)**2)
+        ! WRITE(*,'(A)') 'Windspeed calculation worked'
 
     CASE DEFAULT
-        WRITE(*,'(A)') 'Bad data in wind staggering flag'
+        WRITE(0,'(A)') 'Bad data in wind staggering flag'
         CALL EXIT(0)
 
     END SELECT
+
+    ! ------------------------------------------------------------------------------------------
+    ! Check if the surface area file exists
+	INQUIRE(FILE=TRIM(sas_imp), EXIST=file_exists)
+	IF (.NOT. file_exists) THEN
+		WRITE(0,'(A)') 'Point source parameter file ', TRIM(sas_imp), ' does not exist'
+		CALL EXIT(0)
+    END IF
+
+    ! Allocate the SAS array
+    ALLOCATE(sas_array(fl_met%nx, fl_met%ny, 2), STAT=alloc_stat)
+	CALL check_alloc_stat(alloc_stat)
+
+    ! Read the surface area parameter file
+	OPEN(NEWUNIT=sas_imp_unit, FILE=TRIM(sas_imp),STATUS='OLD')
+	! Skip column headers
+    READ(sas_imp_unit,*)
+    
+    ! Read the SAS file until error or EOF
+    i_sas = 0
+    DO WHILE ( io_stat .EQ. 0 )
+
+        READ(sas_imp_unit,*,IOSTAT=io_stat) sas_x, sas_y, sas_area, sas_silt
+
+        ! Validate the x,y data
+        IF ( sas_x <= 0 .OR. sas_x > fl_met%nx .OR. sas_y <= 0 .OR. sas_y > fl_met%ny ) THEN
+            WRITE(0,'(A,I3,A,I3)') 'y cell coordinate ', sas_x, ' or y cell coordinate ', sas_y, ' is out of the grid bounds'
+            CALL EXIT(0)
+        END IF
+        ! Validate the area and silt data
+        IF ( sas_area < 0 .OR. sas_silt < 0 ) THEN
+            WRITE(0,'(A)') 'Surface area and silt loading data values cannot be negative'
+            CALL EXIT(0)
+        END IF
+
+        i_sas = i_sas +1
+
+    END DO
+
+    ! Check if ended on error
+    IF ( io_stat > 0 ) THEN
+        WRITE(0,'(A)') 'Error reading surface area and silt loading file'
+        CALL EXIT(0)
+    END IF
+    WRITE(*,'(A,I3,A)') 'Read ', i_sas, ' surface area and silt loading records'
 
 
 END PROGRAM MID_RAMPA
