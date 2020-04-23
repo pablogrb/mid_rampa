@@ -103,13 +103,29 @@ IMPLICIT NONE
     CLOSE(nml_unit)
     
     ! ------------------------------------------------------------------------------------------
+    ! File path checks
     ! Check if the met file exists
 	INQUIRE(FILE=TRIM(met_imp), EXIST=file_exists)
 	IF (.NOT. file_exists) THEN
-		WRITE(0,'(A)') 'Point source parameter file ', TRIM(met_imp), ' does not exist'
+		WRITE(0,'(3A)') 'Meteorology file file ', TRIM(met_imp), ' does not exist'
 		CALL EXIT(0)
     END IF
-    
+
+    ! Check if the surface area file exists
+	INQUIRE(FILE=TRIM(sas_imp), EXIST=file_exists)
+	IF (.NOT. file_exists) THEN
+		WRITE(0,'(3A)') 'Surface area and silt loading file ', TRIM(sas_imp), ' does not exist'
+		CALL EXIT(0)
+    END IF
+
+    ! Check if the output file exists
+	INQUIRE(FILE=TRIM(emis_out), EXIST=file_exists)
+	IF ( file_exists ) THEN
+		WRITE(0,'(3A)') 'Output emissions file ', TRIM(emis_out), ' exists, will not overwrite'
+		CALL EXIT(0)
+    END IF
+
+    ! ------------------------------------------------------------------------------------------
     ! Read the met input file
     CALL inquire_header(fl_met, met_imp)
     ! Check for file type
@@ -149,13 +165,6 @@ IMPLICIT NONE
     END SELECT
 
     ! ------------------------------------------------------------------------------------------
-    ! Check if the surface area file exists
-	INQUIRE(FILE=TRIM(sas_imp), EXIST=file_exists)
-	IF (.NOT. file_exists) THEN
-		WRITE(0,'(A)') 'Point source parameter file ', TRIM(sas_imp), ' does not exist'
-		CALL EXIT(0)
-    END IF
-
     ! Allocate the SAS array
     ALLOCATE(sas_array(fl_met%nx, fl_met%ny, 2), STAT=alloc_stat)
     CALL check_alloc_stat(alloc_stat)
@@ -254,7 +263,7 @@ IMPLICIT NONE
 
     ! Calculate the emissions
 
-!   Start of the parallel section (OMP NOT WORKING)
+!   Start of the parallel section
 !$OMP PARALLEL SHARED(fl_out)
 !$OMP DO SCHEDULE(DYNAMIC)
     DO i_hr = 1, fl_out%update_times
@@ -283,6 +292,10 @@ IMPLICIT NONE
 !$OMP END DO NOWAIT
 !$OMP END PARALLEL
     ! WRITE(*,'(A)') 'Model calc worked'
+
+    ! ------------------------------------------------------------------------------------------
+    ! Write the ouput file
+    CALL write_uamfile(fl_out, emis_out)
 
 END PROGRAM MID_RAMPA
 

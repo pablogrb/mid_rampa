@@ -44,8 +44,12 @@ IMPLICIT NONE
 
     ! FCRS
     emis(1) = silt_load * (MA11_HADT_PM25_A * LOG(windspeed) + MA11_HADT_PM25_B)
+
     ! CCRS
     emis(2) = silt_load * (MA11_HADT_PM10_A * LOG(windspeed) + MA11_HADT_PM10_B)
+
+    ! Set negatives to zero
+    WHERE (emis < 0. ) emis = 0.
 
 END FUNCTION MA11_HADT
 
@@ -74,6 +78,9 @@ IMPLICIT NONE
     emis(1) = silt_load * (MA11_LADT_PM25_A * LOG(windspeed) + MA11_LADT_PM25_B)
     ! CCRS
     emis(2) = silt_load * (MA11_LADT_PM10_A * LOG(windspeed) + MA11_LADT_PM10_B)
+
+    ! Set negatives to zero
+    WHERE (emis < 0. ) emis = 0.
 
 END FUNCTION MA11_LADT
 

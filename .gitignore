@@ -6,5 +6,7 @@
 *.mod
 # Intermediate compiler output
 *.o
+# Emission file output
+*.bin
 # Compiled program
 MID_RAMPA
