@@ -59,6 +59,22 @@ fi
 #	   				M	I	D		R	A	M	P	A
 #	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*
 
+# Create the MID_RAMPA.nml file
+if [ -f MID_RAMPA.nml.$scenario ]; then
+	source MID_RAMPA.nml.$scenario
+else
+	echo "Template file does not exist"
+	exit 1
+fi
+
+# Check the sector and model arrays
+no_sector=${#sector_names[@]}
+no_models=${#sector_model[@]}
+if [ $no_sector -ne $no_models ]; then
+	echo "There must be a model for every sector"
+	exit 1
+fi
+
 # Loop through the forcast days
 for i in $(eval echo {1..$forecast})
 do
@@ -66,20 +82,26 @@ do
 	get_date $tyear $tmonth $tday $((i-1))
 	declare -a tvdate=(${fvdate[@]})
 	
-	# Debug
-	pause_message $pause "Update the MID_RAMPA.nml file"
-	# Update the MID_RAMPA.nml file
-	source MID_RAMPA.nml.$scenario
+	for j in $(eval echo {0..$((no_sectors-1))})
+	do
+		# Debug
+		pause_message $pause "Update the MID_RAMPA.nml file"
+		# set the sector and model name
+		sector=${sector_names[j]}
+		model=${sector_model[j]}
+		# Update the MID_RAMPA.nml file
+		source MID_RAMPA.nml.$scenario
 
-	#	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*
-	# Debug
-	pause_message $pause "Run MID_RAMPA for ${tvdate[4]} ${tvdate[1]} ${tvdate[2]}"
-	# Run ramxcamx
-	./MID_RAMPA | tee MID_RAMPA.$scenario.log
-	if [ "$?" -ne "0" ]; then
-		echo "Run failed"
-		exit 1
-	else
-		echo "Run successful."
-	fi
+		#	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*	*
+		# Debug
+		pause_message $pause "Run MID_RAMPA for ${tvdate[4]} ${tvdate[1]} ${tvdate[2]} for sector ${sector}"
+		# Run MID_RAMPA
+		./MID_RAMPA | tee MID_RAMPA.$scenario.log
+		if [ "$?" -ne "0" ]; then
+			echo "Run failed"
+			exit 1
+		else
+			echo "Run successful."
+		fi
+	done
 done

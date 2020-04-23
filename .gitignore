@@ -8,6 +8,8 @@
 *.o
 # Emission file output
 *.bin
+# Log files
+*.log
 # Default run namelist
 MID_RAMPA.nml
 # Compiled program
