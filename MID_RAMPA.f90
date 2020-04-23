@@ -22,9 +22,9 @@ IMPLICIT NONE
     ! This program requires a F08 compatible compiler
     ! ------------------------------------------------------------------------------------------
     ! Error coodes
-    !	0 = File IO
-    !	1 = Memory allocation
-    !   2 = Unsupported feature
+    !	1 = File IO
+    !	2 = Memory allocation
+    !   3 = Unsupported feature
 
     ! ------------------------------------------------------------------------------------------
     ! Declarations
@@ -76,13 +76,13 @@ IMPLICIT NONE
 		ctrlfile = 'MID_RAMPA.nml'
 	ELSEIF (arg_num .NE. 2) THEN
 		WRITE(0,'(A)') 'Bad argument number'
-		CALL EXIT(0)
+		CALL EXIT(1)
 	ELSE
 	! 	Capture the argument type
 		CALL GET_COMMAND_ARGUMENT(1,arg_switch)
 		IF (arg_switch .NE. '-f') THEN
 			WRITE(0,'(A)') 'Bad argument type'
-			CALL EXIT(0)
+			CALL EXIT(1)
 		ELSE
 			CALL GET_COMMAND_ARGUMENT(2,ctrlfile)
 		END IF
@@ -93,7 +93,7 @@ IMPLICIT NONE
 		WRITE(6,'(2A)') 'Using the control file ', TRIM(ctrlfile)
 	ELSE
 		WRITE(0,'(3A)') 'Control file ', TRIM(ctrlfile), ' does not exist'
-		CALL EXIT(0)
+		CALL EXIT(1)
     END IF
     
     ! Read the namelist
@@ -108,21 +108,21 @@ IMPLICIT NONE
 	INQUIRE(FILE=TRIM(met_imp), EXIST=file_exists)
 	IF (.NOT. file_exists) THEN
 		WRITE(0,'(3A)') 'Meteorology file file ', TRIM(met_imp), ' does not exist'
-		CALL EXIT(0)
+		CALL EXIT(1)
     END IF
 
     ! Check if the surface area file exists
 	INQUIRE(FILE=TRIM(sas_imp), EXIST=file_exists)
 	IF (.NOT. file_exists) THEN
 		WRITE(0,'(3A)') 'Surface area and silt loading file ', TRIM(sas_imp), ' does not exist'
-		CALL EXIT(0)
+		CALL EXIT(1)
     END IF
 
     ! Check if the output file exists
 	INQUIRE(FILE=TRIM(emis_out), EXIST=file_exists)
 	IF ( file_exists ) THEN
 		WRITE(0,'(3A)') 'Output emissions file ', TRIM(emis_out), ' exists, will not overwrite'
-		CALL EXIT(0)
+		CALL EXIT(1)
     END IF
 
     ! ------------------------------------------------------------------------------------------
@@ -131,7 +131,7 @@ IMPLICIT NONE
     ! Check for file type
     IF ( fl_met%ftype .NE. 'AVERAGE   ' ) THEN
         WRITE(*,'(A)') 'Bad file type. File must be of type AVERAGE'
-        CALL EXIT(0)
+        CALL EXIT(1)
     END IF
     ! Check if wind component variables are available
     uwind_isp = fl_spindex(fl_met,'UWIND_MpS')
@@ -148,7 +148,7 @@ IMPLICIT NONE
     CASE (1)
         WRITE(0,'(A)') 'Horizontal wind components are in an Arakawa C arrangement'
         WRITE(0,'(A)') 'This arrangement is currently not supported'
-        CALL EXIT(2)
+        CALL EXIT(3)
 
     CASE (0)
         WRITE(*,'(A)') 'Horizontal wind components are in an cell center arrangement'
@@ -160,7 +160,7 @@ IMPLICIT NONE
 
     CASE DEFAULT
         WRITE(0,'(A)') 'Bad data in wind staggering flag'
-        CALL EXIT(0)
+        CALL EXIT(1)
 
     END SELECT
 
@@ -190,12 +190,12 @@ IMPLICIT NONE
         ! Validate the x,y data
         IF ( sas_x <= 0 .OR. sas_x > fl_met%nx .OR. sas_y <= 0 .OR. sas_y > fl_met%ny ) THEN
             WRITE(0,'(A,I3,A,I3)') 'y cell coordinate ', sas_x, ' or y cell coordinate ', sas_y, ' is out of the grid bounds'
-            CALL EXIT(0)
+            CALL EXIT(1)
         END IF
         ! Validate the area and silt data
         IF ( sas_area < 0 .OR. sas_silt < 0. ) THEN
             WRITE(0,'(A)') 'Surface area and silt loading data values cannot be negative'
-            CALL EXIT(0)
+            CALL EXIT(1)
         END IF
 
         ! Load the current data point into the array
@@ -209,7 +209,7 @@ IMPLICIT NONE
     ! Check if ended on error
     IF ( io_stat > 0 ) THEN
         WRITE(0,'(A,I5)') 'Error reading surface area and silt loading file at line ', i_sas
-        CALL EXIT(0)
+        CALL EXIT(1)
     END IF
     WRITE(*,'(A,I5,A)') 'Read ', i_sas-1, ' surface area and silt loading records'
     ! WRITE(*,'(A)') 'SAS file read worked'
@@ -283,7 +283,7 @@ IMPLICIT NONE
                     
                 CASE DEFAULT
                     WRITE(0,'(A,A)') TRIM(model), ' is not a valid model'
-                    CALL EXIT(2)
+                    CALL EXIT(3)
                 END SELECT
 
             END DO
@@ -309,7 +309,7 @@ SUBROUTINE check_alloc_stat(alloc_stat)
 
 	IF ( alloc_stat .NE. 0 ) THEN
 		WRITE(0,'(A)') 'Error allocating parameter vectors, check available memory'
-		CALL EXIT(1)
+		CALL EXIT(2)
 	END IF
 
 END SUBROUTINE check_alloc_stat
