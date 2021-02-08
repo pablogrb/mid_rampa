@@ -7,7 +7,7 @@ FC = gfortran
 
 # Flags for gfortran
 # FLAGS = -g -Wall -Wno-tabs -fconvert=big-endian
-FLAGS = -g -Wall -Wno-tabs -fconvert=big-endian -fopenmp
+FLAGS = -O3 -Wall -Wno-tabs -fconvert=big-endian -fopenmp
 
 TARGET = MID_RAMPA
 
