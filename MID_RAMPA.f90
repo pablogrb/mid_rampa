@@ -252,7 +252,9 @@ IMPLICIT NONE
     fl_out%ibgdat = fl_met%ibgdat
     fl_out%iendat = fl_met%iendat
     fl_out%nbgtim = fl_met%nbgtim
-    fl_out%nentim = fl_met%nentim
+    ! Forces the time interval to be 1 hour due to issues with the met coming from rams2camx
+    fl_out%nentim = fl_met%nbgtim + 1
+    ! fl_out%nentim = fl_met%nentim
     ! WRITE(*,*) fl_out%ibgdat
     ! WRITE(*,*) fl_met%ibgdat
     ! WRITE(*,'(A)') 'Time variant headers cloning worked'
