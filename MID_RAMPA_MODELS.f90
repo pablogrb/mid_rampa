@@ -53,7 +53,7 @@ IMPLICIT NONE
 
 END FUNCTION MA11_HADT
 
-! MA11_HADT: Martucevicius et al. 2011. City center street (High traffic).
+! MA11_LADT: Martucevicius et al. 2011. Suburban street (Low traffic).
 PURE FUNCTION MA11_LADT(windspeed, silt_load) RESULT(emis)
 IMPLICIT NONE
 
@@ -83,6 +83,62 @@ IMPLICIT NONE
     WHERE (emis < 0. ) emis = 0.
 
 END FUNCTION MA11_LADT
+
+! UPB21_HADT: Resultados de la campana de monitoreo realizada en 2021 (Alto trafIco).
+PURE FUNCTION UPB21_HADT(windspeed, area) RESULT(emis)
+IMPLICIT NONE
+
+    ! IO
+    REAL, INTENT(IN) :: windspeed
+    REAL, INTENT(IN) :: area
+    REAL :: emis(2)
+    ! Model parameters
+    REAL :: UPB21_HADT_PM25_A
+    REAL :: UPB21_HADT_PM25_B
+
+    ! Parameter values
+    ! Separated from declaration to mantain PURE condition
+    UPB21_HADT_PM25_A = -0.000115730701754
+    UPB21_HADT_PM25_B =  0.003078219298246
+
+    ! FCRS
+    emis(1) = area * (UPB21_HADT_PM25_A * (windspeed) + UPB21_HADT_PM25_B)
+
+    ! CCRS
+    emis(2) = 0
+
+    ! Set negatives to zero
+    WHERE (emis < 0. ) emis = 0.
+
+END FUNCTION UPB21_HADT
+
+! UPB21_LADT: Resultados de la campana de monitoreo realizada en 2021 (Bajo trafIco).
+PURE FUNCTION UPB21_LADT(windspeed, area) RESULT(emis)
+IMPLICIT NONE
+
+    ! IO
+    REAL, INTENT(IN) :: windspeed
+    REAL, INTENT(IN) :: area
+    REAL :: emis(2)
+    ! Model parameters
+    REAL :: UPB21_LADT_PM25_A
+    REAL :: UPB21_LADT_PM25_B
+
+    ! Parameter values
+    ! Separated from declaration to mantain PURE condition
+    UPB21_LADT_PM25_A =  0.000027733552632
+    UPB21_LADT_PM25_B =  0.002617921052632
+
+    ! FCRS
+    emis(1) = area * (UPB21_LADT_PM25_A * (windspeed) + UPB21_LADT_PM25_B)
+
+    ! CCRS
+    emis(2) = 0
+
+    ! Set negatives to zero
+    WHERE (emis < 0. ) emis = 0.
+
+END FUNCTION UPB21_LADT
 
 END MODULE MID_RAMPA_MODELS
 

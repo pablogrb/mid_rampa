@@ -282,7 +282,15 @@ IMPLICIT NONE
                 CASE ('MA11_LADT')
 
                     fl_out%aemis(i_nx,i_ny,i_hr,:) = MA11_LADT(wind_array(i_nx,i_ny,i_hr), sas_array(i_nx,i_ny,2))
-                    
+                
+                CASE ('UPB21_HADT')
+
+                    fl_out%aemis(i_nx,i_ny,i_hr,:) = UPB21_HADT(wind_array(i_nx,i_ny,i_hr), sas_array(i_nx,i_ny,1))
+                
+                CASE ('UPB21_LADT')
+
+                    fl_out%aemis(i_nx,i_ny,i_hr,:) = UPB21_LADT(wind_array(i_nx,i_ny,i_hr), sas_array(i_nx,i_ny,1))
+
                 CASE DEFAULT
                     WRITE(0,'(A,A)') TRIM(model), ' is not a valid model'
                     CALL EXIT(3)
